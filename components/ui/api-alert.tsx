@@ -4,9 +4,9 @@ import { FC } from 'react'
 import toast from 'react-hot-toast'
 import { Copy, Server } from 'lucide-react'
 
+import { Alert, AlertDescription, AlertTitle } from './alert'
 import { Badge } from './badge'
 import { Button } from './button'
-import { Alert, AlertDescription, AlertTitle } from './alert'
 
 interface ApiAlertProps {
   title: string
