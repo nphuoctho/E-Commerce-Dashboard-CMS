@@ -73,6 +73,7 @@ const BillboardForm: FC<BillboardFormProps> = ({ initialData }) => {
       setLoading(true)
       await axios.delete(`/api/${params.storeId}/billboards/${params.billboardId}`)
       toast.success('Billboard deleted.')
+      router.push(`/${params.storeId}/billboards`)
       router.refresh()
     } catch {
       toast.error('Make sure you removed all categories first.')
@@ -90,26 +91,26 @@ const BillboardForm: FC<BillboardFormProps> = ({ initialData }) => {
         onConfirm={onDelete}
         loading={loading}
       />
-      <div className="flex items-center justify-between">
+      <div className='flex items-center justify-between'>
         <Heading title={title} description={description} />
 
         {initialData && (
           <Button
             disabled={loading}
-            variant="destructive"
-            size="icon"
+            variant='destructive'
+            size='icon'
             onClick={() => setOpen(true)}
           >
-            <Trash className="size-4" />
+            <Trash className='size-4' />
           </Button>
         )}
       </div>
       <Separator />
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 w-full">
+        <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-8 w-full'>
           <FormField
             control={form.control}
-            name="imageUrl"
+            name='imageUrl'
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Background Image</FormLabel>
@@ -124,21 +125,21 @@ const BillboardForm: FC<BillboardFormProps> = ({ initialData }) => {
               </FormItem>
             )}
           />
-          <div className="grid grid-cols-3 gap-8">
+          <div className='grid grid-cols-3 gap-8'>
             <FormField
               control={form.control}
-              name="label"
+              name='label'
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Label</FormLabel>
                   <FormControl>
-                    <Input disabled={loading} placeholder="Billboard label" {...field} />
+                    <Input disabled={loading} placeholder='Billboard label' {...field} />
                   </FormControl>
                 </FormItem>
               )}
             />
           </div>
-          <Button disabled={loading} className="ml-auto" type="submit">
+          <Button disabled={loading} className='ml-auto' type='submit'>
             {action}
           </Button>
         </form>

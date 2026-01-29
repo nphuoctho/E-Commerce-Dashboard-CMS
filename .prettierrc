@@ -6,6 +6,6 @@
   "printWidth": 100,
   "useTabs": false,
   "bracketSpacing": true,
-  "jsxSingleQuote": false,
+  "jsxSingleQuote": true,
   "semi": false
 }
