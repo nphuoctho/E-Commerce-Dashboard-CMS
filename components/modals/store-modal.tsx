@@ -1,6 +1,5 @@
 'use client'
 
-import axios from 'axios'
 import { Button } from '@/components/ui/button'
 import {
   Form,
@@ -14,10 +13,11 @@ import { Input } from '@/components/ui/input'
 import { Modal } from '@/components/ui/modal'
 import { useStoreModal } from '@/hooks/use-store-modal'
 import { zodResolver } from '@hookform/resolvers/zod'
+import axios from 'axios'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
-import z from 'zod'
 import toast from 'react-hot-toast'
+import z from 'zod'
 
 const formSchema = z.object({
   name: z.string().min(1),
@@ -42,7 +42,7 @@ const StoreModal = () => {
       const response = await axios.post('/api/stores', values)
 
       window.location.assign(`/${response.data.id}`)
-    } catch (error) {
+    } catch {
       toast.error('Something went wrong.')
     } finally {
       setLoading(false)
