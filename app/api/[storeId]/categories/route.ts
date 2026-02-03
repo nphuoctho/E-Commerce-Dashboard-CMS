@@ -11,14 +11,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ sto
       return new NextResponse('Unauthenticated', { status: 401 })
     }
 
-    const { label, imageUrl } = await req.json()
+    const { name, billboardId } = await req.json()
 
-    if (!label) {
-      return new NextResponse('Label is required', { status: 400 })
+    if (!name) {
+      return new NextResponse('Name is required', { status: 400 })
     }
 
-    if (!imageUrl) {
-      return new NextResponse('Image URL is required', { status: 400 })
+    if (!billboardId) {
+      return new NextResponse('Billboard id URL is required', { status: 400 })
     }
 
     if (!storeId) {
@@ -36,17 +36,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ sto
       return new NextResponse('Unauthorized', { status: 403 })
     }
 
-    const billboard = await prismadb.billboard.create({
+    const category = await prismadb.category.create({
       data: {
-        label,
-        imageUrl,
+        name,
+        billboardId,
         storeId: storeId,
       },
     })
 
-    return NextResponse.json(billboard)
+    return NextResponse.json(category)
   } catch (error) {
-    console.log('🚀 ~ [BILLBOARDS_POST] ~ error:', error)
+    console.log('🚀 ~ [CATEGORIES_POST] ~ error:', error)
 
     return new NextResponse('Interal Error', { status: 500 })
   }
@@ -60,15 +60,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ stor
       return new NextResponse('Store id is required', { status: 400 })
     }
 
-    const billboard = await prismadb.billboard.findMany({
+    const category = await prismadb.category.findMany({
       where: {
         storeId: storeId,
       },
     })
 
-    return NextResponse.json(billboard)
+    return NextResponse.json(category)
   } catch (error) {
-    console.log('🚀 ~ [BILLBOARDS_GET] ~ error:', error)
+    console.log('🚀 ~ [CATEGORIES_GET] ~ error:', error)
 
     return new NextResponse('Interal Error', { status: 500 })
   }

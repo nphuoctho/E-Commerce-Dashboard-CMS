@@ -7,7 +7,7 @@ import Heading from '@/components/ui/heading'
 import ImageUpload from '@/components/ui/image-upload'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
-import { Billboard } from '@/lib/generated/prisma/client'
+import { Image, Product } from '@/lib/generated/prisma/client'
 import { zodResolver } from '@hookform/resolvers/zod'
 import axios from 'axios'
 import { Trash } from 'lucide-react'
@@ -18,48 +18,77 @@ import toast from 'react-hot-toast'
 import z from 'zod'
 
 const formSchema = z.object({
-  label: z.string().min(1),
-  imageUrl: z.string().min(1),
+  name: z.string().min(1),
+  images: z.object({ url: z.string() }).array(),
+  price: z.coerce.number().min(1),
+  categoryId: z.string().min(1),
+  colorId: z.string().min(1),
+  sizeId: z.string().min(1),
+  isFeatured: z.boolean().default(false).optional(),
+  isArchived: z.boolean().default(false).optional(),
 })
 
-interface BillboardFormProps {
-  initialData: Billboard | null
+interface ProductFormProps {
+  initialData:
+    | (Product & {
+        images: Image[]
+      })
+    | null
 }
 
-type BillboardFormValues = z.infer<typeof formSchema>
+type ProductFormValues = z.infer<typeof formSchema>
 
-const BillboardForm: FC<BillboardFormProps> = ({ initialData }) => {
+const ProductForm: FC<ProductFormProps> = ({ initialData }) => {
   const params = useParams()
   const router = useRouter()
 
   const [open, setOpen] = useState<boolean>(false)
   const [loading, setLoading] = useState<boolean>(false)
 
-  const title = initialData ? 'Edit billboard' : 'Create billboard'
-  const description = initialData ? 'Edit a billboard' : 'Add a new billboard'
-  const toastMessage = initialData ? 'Billboard updated' : 'Billboard created'
+  const title = initialData ? 'Edit product' : 'Create product'
+  const description = initialData ? 'Edit a product' : 'Add a new product'
+  const toastMessage = initialData ? 'Product updated' : 'Product created'
   const action = initialData ? 'Save changes' : 'Create'
 
-  const form = useForm<BillboardFormValues>({
+  const form = useForm<ProductFormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: initialData || {
-      label: '',
-      imageUrl: '',
-    },
+    defaultValues: initialData
+      ? {
+          name: initialData.name,
+          images: initialData.images?.map((img) => ({ url: img.url })) || [],
+          price:
+            typeof initialData.price === 'object' && 'toNumber' in initialData.price
+              ? initialData.price.toNumber()
+              : Number(initialData.price),
+          categoryId: initialData.categoryId,
+          colorId: initialData.colorId,
+          sizeId: initialData.sizeId,
+          isFeatured: initialData.isFeatured,
+          isArchived: initialData.isArchived,
+        }
+      : {
+          name: '',
+          images: [],
+          price: 0,
+          colorId: '',
+          sizeId: '',
+          isFeatured: false,
+          isArchived: false,
+        },
   })
 
-  const onSubmit = async (data: BillboardFormValues) => {
+  const onSubmit = async (data: ProductFormValues) => {
     try {
       setLoading(true)
 
       if (initialData) {
-        await axios.patch(`/api/${params.storeId}/billboards/${params.billboardId}`, data)
+        await axios.patch(`/api/${params.storeId}/products/${params.productId}`, data)
       } else {
-        await axios.post(`/api/${params.storeId}/billboards/`, data)
+        await axios.post(`/api/${params.storeId}/products/`, data)
       }
 
       router.refresh()
-      router.push(`/${params.storeId}/billboards`)
+      router.push(`/${params.storeId}/products`)
       toast.success(toastMessage)
     } catch {
       toast.error('Something went wrong.')
@@ -71,12 +100,12 @@ const BillboardForm: FC<BillboardFormProps> = ({ initialData }) => {
   const onDelete = async () => {
     try {
       setLoading(true)
-      await axios.delete(`/api/${params.storeId}/billboards/${params.billboardId}`)
-      toast.success('Billboard deleted.')
-      router.push(`/${params.storeId}/billboards`)
+      await axios.delete(`/api/${params.storeId}/products/${params.productId}`)
+      toast.success('Product deleted.')
+      router.push(`/${params.storeId}/products`)
       router.refresh()
     } catch {
-      toast.error('Make sure you removed all categories using this billboard first.')
+      toast.error('Make sure you removed all categories using this product first.')
     } finally {
       setLoading(false)
       setOpen(false)
@@ -133,7 +162,7 @@ const BillboardForm: FC<BillboardFormProps> = ({ initialData }) => {
                 <FormItem>
                   <FormLabel>Label</FormLabel>
                   <FormControl>
-                    <Input disabled={loading} placeholder='Billboard label' {...field} />
+                    <Input disabled={loading} placeholder='Product label' {...field} />
                   </FormControl>
                 </FormItem>
               )}
@@ -149,4 +178,4 @@ const BillboardForm: FC<BillboardFormProps> = ({ initialData }) => {
   )
 }
 
-export default BillboardForm
+export default ProductForm
