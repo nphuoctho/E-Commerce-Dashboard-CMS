@@ -7,7 +7,8 @@ import {
 } from '@/lib/cloudinary'
 
 export interface ImageUploadOptions {
-  folder?: string
+  storeId: string
+  folder: string
   maxSizeInMb?: number
   allowedFormats?: string[]
 }
@@ -18,50 +19,18 @@ export interface ImageServiceResult<T = unknown> {
   error?: string
 }
 
-// Validata image data
-function validateImageData(imageData: string, options?: ImageUploadOptions): string | null {
-  // Check if base64
-  if (!imageData.startsWith('data:image/')) {
-    return 'Invalid image format'
-  }
-
-  // Check file size (base64 is ~33% larger than binary)
-  const maxSize = (options?.maxSizeInMb || 5) * 1024 * 1024 * 1.33
-  const sizeInBytes = (imageData.length * 3) / 4
-
-  if (sizeInBytes > maxSize) {
-    return `Image size exceeds ${options?.maxSizeInMb || 5}MB`
-  }
-
-  // Check format
-  const allowedFormats = options?.allowedFormats || ['jpeg', 'jpg', 'png', 'webp']
-  const format = imageData.split(';')[0].split('/')[1]
-
-  if (!allowedFormats.includes(format)) {
-    return `Image format must be one of: ${allowedFormats.join(', ')}`
-  }
-
-  return null
-}
-
 // Upload simple image
 export async function uploadImage(
   imageData: string,
-  options?: ImageUploadOptions
+  options: ImageUploadOptions
 ): Promise<ImageServiceResult<CloudinaryUploadResult>> {
   try {
-    // Validate
-    const validateError = validateImageData(imageData, options)
-    if (validateError) {
-      return {
-        success: false,
-        error: validateError,
-      }
-    }
+    const cleanFolder = options?.folder.replace(/^\/+|\/+$/g, '')
 
     // Upload
     const result = await uploadToCloudinary(imageData, {
-      folder: options?.folder,
+      folder: cleanFolder,
+      storeId: options.storeId,
     })
 
     return { success: true, data: result }
@@ -77,23 +46,31 @@ export async function uploadImage(
 // Upload multiple images
 export async function uploadMultipleImages(
   imagesData: string[],
-  options?: ImageUploadOptions
+  options: ImageUploadOptions
 ): Promise<ImageServiceResult<CloudinaryUploadResult[]>> {
   try {
-    // Validate all images
+    const cleanFolder = options?.folder.replace(/^\/+|\/+$/g, '')
+
+    const results: CloudinaryUploadResult[] = []
+    const uploadedPublicIds: string[] = []
+
     for (const imageData of imagesData) {
-      const validationError = validateImageData(imageData, options)
-      if (validationError) {
-        return { success: false, error: validationError }
+      try {
+        // Upload all images
+        const result = await uploadToCloudinary(imageData, {
+          folder: cleanFolder,
+          storeId: options.storeId,
+        })
+        results.push(result)
+        uploadedPublicIds.push(result.publicId)
+      } catch (error) {
+        // Cleanup đã upload nếu có lỗi
+        if (uploadedPublicIds.length > 0) {
+          await deleteMultipleFromCloudinary(uploadedPublicIds).catch(console.error)
+        }
+        throw error
       }
     }
-
-    // Upload all images
-    const uploadPromises = imagesData.map((imageData) =>
-      uploadToCloudinary(imageData, { folder: options?.folder })
-    )
-
-    const results = await Promise.all(uploadPromises)
 
     return { success: true, data: results }
   } catch (error: unknown) {

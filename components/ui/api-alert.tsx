@@ -31,14 +31,14 @@ const ApiAlert: FC<ApiAlertProps> = ({ title, description, variant }) => {
   }
 
   return (
-    <Alert>
+    <Alert className='space-y-2'>
       <Server className='size-4' />
-      <AlertTitle className='flex items-center gap-x-2'>
+      <AlertTitle className='flex items-center gap-x-2 font-bold'>
         {title}
         <Badge variant={variantMap[variant]}>{textMap[variant]}</Badge>
       </AlertTitle>
-      <AlertDescription className='mt-4 flex items-center justify-between'>
-        <code className='relative rounded bg-muted px-[0.3rem] py-[0.2rem] text-primary font-mono text-sm font-semibold'>
+      <AlertDescription className='flex items-center justify-between'>
+        <code className='relative rounded bg-secondary px-2 py-1 text-primary text-sm font-semibold'>
           {description}
         </code>
         <Button variant='outline' size='icon' onClick={onCopy}>

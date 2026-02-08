@@ -1,13 +1,22 @@
 'use client'
 
+import CardUpload from '@/components/file-upload/card-upload'
 import AlertModal from '@/components/modals/alert-modal'
 import { Button } from '@/components/ui/button'
-import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form'
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form'
 import Heading from '@/components/ui/heading'
-import ImageUpload from '@/components/ui/image-upload'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
-import { Billboard } from '@/lib/generated/prisma/client'
+import { FileMetadata } from '@/hooks/use-file-upload'
+import { Billboard, Image } from '@/lib/generated/prisma/client'
+import { convertBlobUrlsToBase64, getBase64Size } from '@/lib/utils'
 import { zodResolver } from '@hookform/resolvers/zod'
 import axios from 'axios'
 import { Trash } from 'lucide-react'
@@ -18,17 +27,22 @@ import toast from 'react-hot-toast'
 import z from 'zod'
 
 const formSchema = z.object({
-  label: z.string().min(1),
-  imageUrl: z.string().min(1),
+  label: z.string().min(1, 'Label is required'),
+  image: z.string().min(1, 'Image is required'),
 })
 
+type SerializedBillboard = Billboard & {
+  image?: Image
+}
+
 interface BillboardFormProps {
-  initialData: Billboard | null
+  initialData: SerializedBillboard | null
+  defaultImage?: FileMetadata
 }
 
 type BillboardFormValues = z.infer<typeof formSchema>
 
-const BillboardForm: FC<BillboardFormProps> = ({ initialData }) => {
+const BillboardForm: FC<BillboardFormProps> = ({ initialData, defaultImage }) => {
   const params = useParams()
   const router = useRouter()
 
@@ -42,27 +56,62 @@ const BillboardForm: FC<BillboardFormProps> = ({ initialData }) => {
 
   const form = useForm<BillboardFormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: initialData || {
-      label: '',
-      imageUrl: '',
-    },
+    defaultValues: initialData
+      ? {
+          label: initialData.label,
+          image: initialData.image?.url || '',
+        }
+      : {
+          label: '',
+          image: '',
+        },
   })
 
   const onSubmit = async (data: BillboardFormValues) => {
     try {
       setLoading(true)
 
-      if (initialData) {
-        await axios.patch(`/api/${params.storeId}/billboards/${params.billboardId}`, data)
-      } else {
-        await axios.post(`/api/${params.storeId}/billboards/`, data)
+      const MAX_SIZE = 5 * 1024 * 1024
+      if (data.image.startsWith('data:') && getBase64Size(data.image) > MAX_SIZE) {
+        toast.error('Image exceeds 5MB limit', { id: 'upload-process' })
+        return
       }
 
-      router.refresh()
+      toast.loading('Preparing image...', { id: 'upload-process' })
+      const [base64Image] = await convertBlobUrlsToBase64([data.image], {
+        timeout: 30000,
+      })
+
+      const submitData = {
+        ...data,
+        image: base64Image,
+      }
+
+      if (base64Image.startsWith('data:')) {
+        toast.loading('Uploading image...', { id: 'upload-process' })
+      }
+
+      if (initialData) {
+        await axios.patch(`/api/${params.storeId}/billboards/${params.billboardId}`, submitData, {
+          timeout: 60000,
+        })
+      } else {
+        await axios.post(`/api/${params.storeId}/billboards/`, submitData, {
+          timeout: 60000,
+        })
+      }
+
+      toast.success(toastMessage, { id: 'upload-process' })
+
+      if (data.image.startsWith('blob:')) {
+        URL.revokeObjectURL(data.image)
+      }
+
       router.push(`/${params.storeId}/billboards`)
-      toast.success(toastMessage)
-    } catch {
-      toast.error('Something went wrong.')
+      router.refresh()
+    } catch (error: unknown) {
+      console.log('🚀 ~ [Billboard Form] onSubmit ~ error:', error)
+      toast.error('Something went wrong.', { id: 'upload-process' })
     } finally {
       setLoading(false)
     }
@@ -110,18 +159,24 @@ const BillboardForm: FC<BillboardFormProps> = ({ initialData }) => {
         <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-8 w-full'>
           <FormField
             control={form.control}
-            name='imageUrl'
+            name='image'
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Background Image</FormLabel>
                 <FormControl>
-                  <ImageUpload
-                    value={field.value ? [field.value] : []}
-                    disabled={loading}
-                    onChange={(url) => field.onChange(url)}
-                    onRemove={() => field.onChange('')}
+                  <CardUpload
+                    multiple={false}
+                    maxFiles={1}
+                    loading={loading}
+                    defaultValues={defaultImage ? [defaultImage] : []}
+                    onFilesChange={(images) => {
+                      field.onChange(images[0]?.preview || '')
+                    }}
                   />
                 </FormControl>
+                <div className='h-6 mt-1'>
+                  <FormMessage />
+                </div>
               </FormItem>
             )}
           />
@@ -135,6 +190,9 @@ const BillboardForm: FC<BillboardFormProps> = ({ initialData }) => {
                   <FormControl>
                     <Input disabled={loading} placeholder='Billboard label' {...field} />
                   </FormControl>
+                  <div className='h-6 mt-1'>
+                    <FormMessage />
+                  </div>
                 </FormItem>
               )}
             />

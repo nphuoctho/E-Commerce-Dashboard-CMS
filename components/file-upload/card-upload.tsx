@@ -4,31 +4,18 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
+  FileMetadata,
   formatBytes,
   useFileUpload,
-  type FileMetadata,
   type FileWithPreview,
 } from '@/hooks/use-file-upload'
-import { toAbsoluteUrl } from '@/lib/helpers'
 import { cn } from '@/lib/utils'
-import {
-  CloudUpload,
-  FileArchiveIcon,
-  FileSpreadsheetIcon,
-  FileTextIcon,
-  HeadphonesIcon,
-  ImageIcon,
-  RefreshCwIcon,
-  Trash2,
-  TriangleAlert,
-  Upload,
-  VideoIcon,
-  XIcon,
-} from 'lucide-react'
+import { ImageIcon, RefreshCwIcon, Trash2, TriangleAlert, Upload, XIcon } from 'lucide-react'
+import Image from 'next/image'
 import { useEffect, useState } from 'react'
 
 // Extend FileWithPreview to include upload status and progress
-interface FileUploadItem extends FileWithPreview {
+export interface ImageUploadItem extends FileWithPreview {
   progress: number
   status: 'uploading' | 'completed' | 'error'
   error?: string
@@ -37,62 +24,42 @@ interface FileUploadItem extends FileWithPreview {
 interface CardUploadProps {
   maxFiles?: number
   maxSize?: number
-  accept?: string
   multiple?: boolean
+  loading?: boolean
   className?: string
-  onFilesChange?: (files: FileUploadItem[]) => void
+  defaultValues?: FileMetadata[]
+  onFilesChange?: (files: ImageUploadItem[]) => void
   simulateUpload?: boolean
 }
 
 export default function CardUpload({
   maxFiles = 10,
-  maxSize = 50 * 1024 * 1024, // 50MB
-  accept = '*',
+  maxSize = 5 * 1024 * 1024,
   multiple = true,
+  loading = false,
   className,
+  defaultValues,
   onFilesChange,
   simulateUpload = true,
+  ...props
 }: CardUploadProps) {
-  // Create default files using FileMetadata type
-  const defaultFiles: FileMetadata[] = [
-    {
-      id: 'default-card-1',
-      name: 'intro.zip',
-      size: 252846,
-      type: 'application/zip',
-      url: toAbsoluteUrl('/media/files/intro.zip'),
-    },
-    {
-      id: 'default-card-2',
-      name: 'image-01.jpg',
-      size: 1536000,
-      type: 'image/jpeg',
-      url: 'https://picsum.photos/1000/800?grayscale&random=3',
-    },
-    {
-      id: 'default-card-3',
-      name: 'audio.mp3',
-      size: 1536000,
-      type: 'audio/mpeg',
-      url: toAbsoluteUrl('/media/files/audio.mp3'),
-    },
-  ]
+  const defaultImages: FileMetadata[] = defaultValues || []
 
-  // Convert default files to FileUploadItem format
-  const defaultUploadFiles: FileUploadItem[] = defaultFiles.map((file) => ({
-    id: file.id,
+  // Convert default images to ImageUploadItem format
+  const defaultUploadImages: ImageUploadItem[] = defaultImages.map((image) => ({
+    id: image.id,
     file: {
-      id: file.id,
-      name: file.name,
-      size: file.size,
-      type: file.type,
+      id: image.id,
+      name: image.name,
+      size: image.size,
+      type: image.type,
     } as unknown as File,
-    preview: file.url,
+    preview: image.url,
     progress: 100,
     status: 'completed' as const,
   }))
 
-  const [uploadFiles, setUploadFiles] = useState<FileUploadItem[]>(defaultUploadFiles)
+  const [uploadImages, setUploadImages] = useState<ImageUploadItem[]>(defaultUploadImages)
 
   const [
     { isDragging, errors },
@@ -109,45 +76,49 @@ export default function CardUpload({
   ] = useFileUpload({
     maxFiles,
     maxSize,
-    accept,
+    accept: 'image/*',
     multiple,
-    initialFiles: defaultFiles,
-    onFilesChange: (newFiles) => {
+    initialFiles: defaultImages,
+    onFilesChange: (newImages) => {
       // Convert to upload items when files change, preserving existing status
-      const newUploadFiles = newFiles.map((file) => {
+      const newUploadImages = newImages.map((image) => {
         // Check if this file already exists in uploadFiles
-        const existingFile = uploadFiles.find((existing) => existing.id === file.id)
+        const existingImage = uploadImages.find((existing) => existing.id === image.id)
 
-        if (existingFile) {
+        if (existingImage) {
           // Preserve existing file status and progress
           return {
-            ...existingFile,
-            ...file, // Update any changed properties from the file
+            ...existingImage,
+            ...image, // Update any changed properties from the file
           }
         } else {
           // New file - set to uploading
           return {
-            ...file,
+            ...image,
             progress: 0,
             status: 'uploading' as const,
           }
         }
       })
 
-      setUploadFiles(newUploadFiles)
-      onFilesChange?.(newUploadFiles)
+      setUploadImages(newUploadImages)
     },
   })
+
+  useEffect(() => {
+    onFilesChange?.(uploadImages)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uploadImages])
 
   // Simulate upload progress for new files
   useEffect(() => {
     if (!simulateUpload) return
 
-    const uploadingFiles = uploadFiles.filter((file) => file.status === 'uploading')
+    const uploadingFiles = uploadImages.filter((file) => file.status === 'uploading')
     if (uploadingFiles.length === 0) return
 
     const interval = setInterval(() => {
-      setUploadFiles((prev) =>
+      setUploadImages((prev) =>
         prev.map((file) => {
           if (file.status !== 'uploading') return file
 
@@ -171,17 +142,17 @@ export default function CardUpload({
     }, 500)
 
     return () => clearInterval(interval)
-  }, [uploadFiles, simulateUpload])
+  }, [uploadImages, simulateUpload])
 
-  const removeUploadFile = (fileId: string) => {
-    const fileToRemove = uploadFiles.find((f) => f.id === fileId)
+  const removeUploadImage = (fileId: string) => {
+    const fileToRemove = uploadImages.find((f) => f.id === fileId)
     if (fileToRemove) {
       removeFile(fileToRemove.id)
     }
   }
 
   const retryUpload = (fileId: string) => {
-    setUploadFiles((prev) =>
+    setUploadImages((prev) =>
       prev.map((file) =>
         file.id === fileId
           ? { ...file, progress: 0, status: 'uploading' as const, error: undefined }
@@ -190,40 +161,30 @@ export default function CardUpload({
     )
   }
 
-  const getFileIcon = (file: File | FileMetadata) => {
-    const type = file instanceof File ? file.type : file.type
-    if (type.startsWith('image/')) return <ImageIcon className='size-6' />
-    if (type.startsWith('video/')) return <VideoIcon className='size-6' />
-    if (type.startsWith('audio/')) return <HeadphonesIcon className='size-6' />
-    if (type.includes('pdf')) return <FileTextIcon className='size-6' />
-    if (type.includes('word') || type.includes('doc')) return <FileTextIcon className='size-6' />
-    if (type.includes('excel') || type.includes('sheet'))
-      return <FileSpreadsheetIcon className='size-6' />
-    if (type.includes('zip') || type.includes('rar')) return <FileArchiveIcon className='size-6' />
-    return <FileTextIcon className='size-6' />
-  }
-
   return (
     <div className={cn('w-full space-y-4', className)}>
       {/* Upload Area */}
       <div
         className={cn(
-          'relative rounded-lg border border-dashed p-6 text-center transition-colors',
+          'relative rounded-lg border-2 border-dashed p-8 text-center transition-all cursor-pointer',
           isDragging
-            ? 'border-primary bg-primary/5'
-            : 'border-muted-foreground/25 hover:border-muted-foreground/50'
+            ? 'border-primary bg-primary/10 scale-105'
+            : 'border-muted-foreground/30 bg-muted/30 hover:border-primary/50 hover:bg-primary/5',
+          'aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive'
         )}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
+        onClick={openFileDialog}
+        {...props}
       >
         <input {...getInputProps()} className='sr-only' />
 
         <div className='flex flex-col items-center gap-4'>
           <div
             className={cn(
-              'flex h-12 w-12 items-center justify-center rounded-full bg-muted transition-colors',
+              'flex h-12 w-12 items-center justify-center rounded-full bg-muted transition-colors border',
               isDragging ? 'border-primary bg-primary/10' : 'border-muted-foreground/25'
             )}
           >
@@ -231,34 +192,29 @@ export default function CardUpload({
           </div>
 
           <div className='space-y-2'>
-            <p className='text-sm font-medium'>
-              Drop files here or{' '}
-              <button
-                type='button'
-                onClick={openFileDialog}
-                className='cursor-pointer text-primary underline-offset-4 hover:underline'
-              >
-                browse files
-              </button>
-            </p>
+            <p className='text-sm font-medium'>Upload images</p>
             <p className='text-xs text-muted-foreground'>
-              Maximum file size: {formatBytes(maxSize)} • Maximum files: {maxFiles}
+              Drag & Drop JPG, PNG, GIF, WebP up to {formatBytes(maxSize)}
             </p>
           </div>
+
+          <Button type='button' onClick={openFileDialog}>
+            Browse images
+          </Button>
         </div>
       </div>
 
-      {/* Files Grid */}
-      {uploadFiles.length > 0 && (
+      {/* Images Grid */}
+      {uploadImages.length > 0 && (
         <div className='space-y-4'>
           <div className='flex items-center justify-between'>
-            <h3 className='text-sm font-medium'>Files ({uploadFiles.length})</h3>
+            <h3 className='text-sm font-medium'>Images ({uploadImages.length})</h3>
             <div className='flex gap-2'>
-              <Button onClick={openFileDialog} variant='outline' size='sm'>
-                <CloudUpload />
-                Add files
+              <Button type='button' onClick={openFileDialog} variant='outline' size='sm'>
+                <ImageIcon />
+                Add images
               </Button>
-              <Button onClick={clearFiles} variant='outline' size='sm'>
+              <Button type='button' onClick={clearFiles} variant='outline' size='sm'>
                 <Trash2 />
                 Remove all
               </Button>
@@ -266,32 +222,40 @@ export default function CardUpload({
           </div>
 
           <div className='grid grid-cols-1 gap-4 sm:grid-cols-3 lg:grid-cols-4'>
-            {uploadFiles.map((fileItem) => (
-              <div key={fileItem.id} className='relative group'>
+            {uploadImages.map((imageItem) => (
+              <div key={imageItem.id} className='relative group'>
                 {/* Remove button */}
                 <Button
-                  onClick={() => removeUploadFile(fileItem.id)}
+                  onClick={() => removeUploadImage(imageItem.id)}
                   variant='outline'
+                  disabled={loading}
                   size='icon'
-                  className='absolute -end-2 -top-2 z-10 size-6 rounded-full opacity-0 transition-opacity group-hover:opacity-100'
+                  className={cn(
+                    'absolute -end-2 -top-2 z-10 size-6 rounded-full opacity-0 transition-opacity',
+                    {
+                      'group-hover:opacity-100': !loading,
+                    }
+                  )}
                 >
                   <XIcon className='size-3' />
                 </Button>
 
                 {/* Wrapper */}
                 <div className='relative overflow-hidden rounded-lg border bg-card transition-colors'>
-                  {/* Image preview or file icon area */}
+                  {/* Image preview area */}
                   <div className='relative aspect-square bg-muted border-b border-border'>
-                    {fileItem.file.type.startsWith('image/') && fileItem.preview ? (
+                    {imageItem.preview ? (
                       <>
                         {/* Image cover */}
-                        <img
-                          src={fileItem.preview}
-                          alt={fileItem.file.name}
+                        <Image
+                          width={120}
+                          height={120}
+                          src={imageItem.preview}
+                          alt={imageItem.file.name}
                           className='h-full w-full object-cover'
                         />
                         {/* Progress overlay for uploading images */}
-                        {fileItem.status === 'uploading' && (
+                        {imageItem.status === 'uploading' && (
                           <div className='absolute inset-0 flex items-center justify-center bg-black/50'>
                             <div className='relative'>
                               <svg className='size-12 -rotate-90' viewBox='0 0 48 48'>
@@ -312,7 +276,9 @@ export default function CardUpload({
                                   stroke='currentColor'
                                   strokeWidth='3'
                                   strokeDasharray={`${2 * Math.PI * 20}`}
-                                  strokeDashoffset={`${2 * Math.PI * 20 * (1 - fileItem.progress / 100)}`}
+                                  strokeDashoffset={`${
+                                    2 * Math.PI * 20 * (1 - imageItem.progress / 100)
+                                  }`}
                                   className='text-white transition-all duration-300'
                                   strokeLinecap='round'
                                 />
@@ -322,58 +288,27 @@ export default function CardUpload({
                         )}
                       </>
                     ) : (
-                      /* File icon area for non-images */
+                      /* Fallback icon if preview is not available */
                       <div className='flex h-full items-center justify-center text-muted-foreground/80'>
-                        {fileItem.status === 'uploading' ? (
-                          <div className='relative'>
-                            <svg className='size-12 -rotate-90' viewBox='0 0 48 48'>
-                              <circle
-                                cx='24'
-                                cy='24'
-                                r='20'
-                                fill='none'
-                                stroke='currentColor'
-                                strokeWidth='3'
-                                className='text-muted-foreground/20'
-                              />
-                              <circle
-                                cx='24'
-                                cy='24'
-                                r='20'
-                                fill='none'
-                                stroke='currentColor'
-                                strokeWidth='3'
-                                strokeDasharray={`${2 * Math.PI * 20}`}
-                                strokeDashoffset={`${2 * Math.PI * 20 * (1 - fileItem.progress / 100)}`}
-                                className='text-primary transition-all duration-300'
-                                strokeLinecap='round'
-                              />
-                            </svg>
-                            <div className='absolute inset-0 flex items-center justify-center'>
-                              {getFileIcon(fileItem.file)}
-                            </div>
-                          </div>
-                        ) : (
-                          <div className='text-4xl'>{getFileIcon(fileItem.file)}</div>
-                        )}
+                        <ImageIcon className='size-12' />
                       </div>
                     )}
                   </div>
 
-                  {/* File info footer */}
+                  {/* Image info footer */}
                   <div className='p-3'>
                     <div className='space-y-1'>
-                      <p className='truncate text-sm font-medium'>{fileItem.file.name}</p>
+                      <p className='truncate text-sm font-medium'>{imageItem.file.name}</p>
                       <div className='relative flex items-center justify-between gap-2'>
                         <span className='text-xs text-muted-foreground'>
-                          {formatBytes(fileItem.file.size)}
+                          {formatBytes(imageItem.file.size)}
                         </span>
 
-                        {fileItem.status === 'error' && fileItem.error && (
+                        {imageItem.status === 'error' && imageItem.error && (
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Button
-                                onClick={() => retryUpload(fileItem.id)}
+                                onClick={() => retryUpload(imageItem.id)}
                                 variant='ghost'
                                 size='icon'
                                 className='absolute end-0 -top-1.25 size-6 text-destructive hover:bg-destructive/10 hover:text-destructive'
@@ -396,9 +331,9 @@ export default function CardUpload({
 
       {/* Error Messages */}
       {errors.length > 0 && (
-        <Alert variant='destructive' appearance='light' className='mt-5'>
-          <TriangleAlert />
-          <AlertTitle>File upload error(s)</AlertTitle>
+        <Alert variant='destructive' className='mt-5 items-center'>
+          <TriangleAlert className='size-5 text-destructive' />
+          <AlertTitle>Image upload error(s)</AlertTitle>
           <AlertDescription>
             {errors.map((error, index) => (
               <p key={index} className='last:mb-0'>

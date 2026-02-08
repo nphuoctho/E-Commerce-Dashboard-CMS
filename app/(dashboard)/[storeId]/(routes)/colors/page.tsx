@@ -19,7 +19,6 @@ const ColorsPage: FC<ColorsPageProps> = async ({ params }) => {
       createdAt: 'desc',
     },
   })
-  console.log('🚀 ~ ColorsPage ~ colors:', colors)
 
   const formattedColors: ColorColumn[] = colors.map((color) => ({
     id: color.id,

@@ -23,7 +23,7 @@ export default function RootLayout({
   return (
     <ClerkProvider>
       <html lang='en'>
-        <body className={`${inter.variable} antialiased`}>
+        <body className={`${inter.className} antialiased`}>
           <ToasterProvider />
           <ModalProvider />
           {children}

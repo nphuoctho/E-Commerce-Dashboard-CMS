@@ -1,6 +1,6 @@
 import { v2 as cloudinary, UploadApiOptions } from 'cloudinary'
 
-const uploadPreset = process.env.NEXT_PUBLIC_UPLOAD_PRESET
+// const uploadPreset = process.env.NEXT_PUBLIC_UPLOAD_PRESET
 
 cloudinary.config({
   cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
@@ -8,9 +8,17 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 })
 
+export const CLOUDINARY_CONFIG = {
+  maxSizeInMb: 5,
+  allowedFormats: ['jpeg', 'jpg', 'png', 'webp'],
+} as const
+
 export interface CloudinaryUploadResult {
   url: string
+  secure_url: string
   publicId: string
+  fileName: string
+  bytes: number
   width?: number
   height?: number
   format: string
@@ -19,16 +27,37 @@ export interface CloudinaryUploadResult {
 // Upload image to Cloudinary
 export async function uploadToCloudinary(
   imageData: string,
-  options?: UploadApiOptions
+  options?: UploadApiOptions & { storeId?: string }
 ): Promise<CloudinaryUploadResult> {
+  const formatMatch = imageData.match(/^data:image\/(\w+);base64,/)
+  const detectedFormat = formatMatch ? formatMatch[1] : 'png'
+
+  if (
+    !CLOUDINARY_CONFIG.allowedFormats.includes(
+      detectedFormat as (typeof CLOUDINARY_CONFIG.allowedFormats)[number]
+    )
+  ) {
+    throw new Error(
+      `Invalid image format: ${detectedFormat}. Allowed formats: ${CLOUDINARY_CONFIG.allowedFormats.join(
+        ', '
+      )}`
+    )
+  }
+
+  const folderPath = `ecom-admin/stores/${options?.storeId}/${options?.folder}`
+
   const result = await cloudinary.uploader.upload(imageData, {
-    folder: options?.folder || 'ecom-admin',
-    upload_preset: uploadPreset,
+    folder: folderPath,
+    allowed_formats: [...CLOUDINARY_CONFIG.allowedFormats],
+    resource_type: 'image',
     transformation: options?.transformation,
   })
 
   return {
-    url: result.secure_url,
+    url: result.url,
+    secure_url: result.secure_url,
+    fileName: result.display_name,
+    bytes: result.bytes,
     publicId: result.public_id,
     width: result.width,
     height: result.height,
@@ -50,14 +79,18 @@ export async function deleteMultipleFromCloudinary(publicIds: string[]) {
 export function extractPublicId(url: string): string | null {
   try {
     const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
-    const pattern = `https://res.cloudinary.com/${cloudName}/image/upload/`
+    const pattern = new RegExp(`https?://res\\.cloudinary\\.com/${cloudName}/image/upload/`)
 
-    if (!url.startsWith(pattern)) return null
+    if (!pattern.test(url)) return null
 
-    const publicIdWithExtension = url.replace(pattern, '').replace(/^v\d+\//, '')
-    const publicId = publicIdWithExtension.substring(0, publicIdWithExtension.indexOf('.'))
+    let publicIdWithFolder = url.replace(pattern, '').replace(/^v\d+\//, '')
 
-    return publicId
+    const lastDotIndex = publicIdWithFolder.lastIndexOf('.')
+    if (lastDotIndex > 0) {
+      publicIdWithFolder = publicIdWithFolder.substring(0, lastDotIndex)
+    }
+
+    return publicIdWithFolder
   } catch {
     return null
   }
