@@ -9,7 +9,7 @@ import { Badge } from './badge'
 import { Button } from './button'
 
 interface ApiAlertProps {
-  title: 'GET' | 'POST' | 'PATCH' | 'DELETE'
+  title: 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'NEXT_PUBLIC_API_URL'
   description: string
   variant: 'public' | 'admin'
 }

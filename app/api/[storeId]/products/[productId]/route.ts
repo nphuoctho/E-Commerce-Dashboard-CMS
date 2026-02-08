@@ -118,6 +118,7 @@ export async function PATCH(
     if (newBase64Images.length > 0) {
       const uploadResult = await uploadMultipleImages(newBase64Images, {
         storeId,
+        folder: 'products',
       })
 
       if (!uploadResult.success || !uploadResult.data) {
