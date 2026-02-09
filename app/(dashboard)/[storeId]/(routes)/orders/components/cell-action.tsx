@@ -12,10 +12,10 @@ import { Copy, Edit, MoreHorizontal, Trash } from 'lucide-react'
 import { useParams, useRouter } from 'next/navigation'
 import { FC, useState } from 'react'
 import toast from 'react-hot-toast'
-import { ColorColumn } from './columns'
+import { OrderColumn } from './columns'
 
 interface CellActionProps {
-  data: ColorColumn
+  data: OrderColumn
 }
 
 const CellAction: FC<CellActionProps> = ({ data }) => {
