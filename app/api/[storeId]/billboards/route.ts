@@ -128,6 +128,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ sto
 export async function GET(req: NextRequest, { params }: { params: Promise<{ storeId: string }> }) {
   try {
     const { storeId } = await params
+    const { searchParams } = new URL(req.url)
+    const limit = parseInt(searchParams.get('limit') || '10', 10)
 
     if (!storeId) {
       return new NextResponse('Store id is required', { status: 400 })
@@ -140,6 +142,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ stor
       include: {
         image: true,
       },
+      take: limit,
     })
 
     return NextResponse.json(billboards)
