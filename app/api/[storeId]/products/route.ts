@@ -216,39 +216,86 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ stor
     const { storeId } = await params
     const { searchParams } = new URL(req.url)
 
-    const categoryId = searchParams.get('categoryId') || undefined
-    const sizeId = searchParams.get('sizeId') || undefined
-    const colorId = searchParams.get('colorId') || undefined
-    const isFeatured = searchParams.get('isFeatured')
-    const isArchived = searchParams.get('isArchived')
-
     if (!storeId) {
-      return new NextResponse('Store id is required', { status: 400 })
+      return new NextResponse('Store ID is required', { status: 400 })
     }
 
-    const product = await prismadb.product.findMany({
-      where: {
-        storeId,
-        categoryId,
-        sizeId,
-        colorId,
-        isFeatured: isFeatured ? true : undefined,
-        isArchived: isArchived ? true : undefined,
-      },
-      include: {
-        images: true,
-        category: true,
-        size: true,
-        color: true,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
+    // Parse and validate query parameters
+    const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '10', 10), 1), 50)
+    const offset = Math.max(parseInt(searchParams.get('offset') || '0', 10), 0)
+    const categoryId = searchParams.get('categoryId')
+    const sizeId = searchParams.get('sizeId')
+    const colorId = searchParams.get('colorId')
+    const isFeaturedParam = searchParams.get('isFeatured')
+    const isArchivedParam = searchParams.get('isArchived')
+    const searchQuery = searchParams.get('search')?.trim()
+
+    // Verify authentication and store access
+    const { userId } = getAuth(req)
+    if (!userId) {
+      return new NextResponse('Unauthenticated', { status: 401 })
+    }
+
+    const store = await prismadb.store.findFirst({
+      where: { id: storeId, userId },
     })
 
-    return NextResponse.json(product)
-  } catch (error) {
-    console.log('🚀 ~ [PRODUCTS_GET] ~ error:', error)
-    return new NextResponse('Internal Error', { status: 500 })
+    if (!store) {
+      return new NextResponse('Store not found or access denied', { status: 403 })
+    }
+
+    // Build dynamic where clause
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const where: any = { storeId }
+
+    if (categoryId) where.categoryId = categoryId
+    if (sizeId) where.sizeId = sizeId
+    if (colorId) where.colorId = colorId
+    if (isFeaturedParam !== null) where.isFeatured = isFeaturedParam === 'true'
+    if (isArchivedParam !== null) where.isArchived = isArchivedParam === 'true'
+
+    // Add search functionality
+    if (searchQuery) {
+      where.name = {
+        contains: searchQuery,
+        mode: 'insensitive',
+      }
+    }
+
+    // Fetch products and total count in parallel for better performance
+    const [products, totalCount] = await Promise.all([
+      prismadb.product.findMany({
+        where,
+        include: {
+          images: true,
+          category: true,
+          size: true,
+          color: true,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        take: limit,
+        skip: offset,
+      }),
+      prismadb.product.count({ where }),
+    ])
+
+    return NextResponse.json({
+      data: products,
+      pagination: {
+        total: totalCount,
+        limit,
+        offset,
+        hasMore: offset + limit < totalCount,
+      },
+    })
+  } catch (error: unknown) {
+    console.error('[PRODUCTS_GET] Error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error'
+    return NextResponse.json(
+      { error: 'Failed to fetch products', details: errorMessage },
+      { status: 500 }
+    )
   }
 }
