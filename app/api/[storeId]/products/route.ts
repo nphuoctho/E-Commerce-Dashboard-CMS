@@ -270,9 +270,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ stor
       take: limit,
     })
 
-    return NextResponse.json({
-      products,
-    })
+    return NextResponse.json(products)
   } catch (error: unknown) {
     console.error('[PRODUCTS_GET] Error:', error)
     const errorMessage = error instanceof Error ? error.message : 'Internal server error'
