@@ -66,9 +66,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ stor
       where: {
         storeId: storeId,
       },
-      include: {
-        billboard: true,
-      },
       take: limit,
     })
 
