@@ -220,9 +220,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ stor
       return new NextResponse('Store ID is required', { status: 400 })
     }
 
-    // Parse and validate query parameters
+    // Parse and validate query parameters (with limit, no offset)
     const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '10', 10), 1), 50)
-    const offset = Math.max(parseInt(searchParams.get('offset') || '0', 10), 0)
     const categoryId = searchParams.get('categoryId')
     const sizeId = searchParams.get('sizeId')
     const colorId = searchParams.get('colorId')
@@ -256,33 +255,23 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ stor
       }
     }
 
-    // Fetch products and total count in parallel for better performance
-    const [products, totalCount] = await Promise.all([
-      prismadb.product.findMany({
-        where,
-        include: {
-          images: true,
-          category: true,
-          size: true,
-          color: true,
-        },
-        orderBy: {
-          createdAt: 'desc',
-        },
-        take: limit,
-        skip: offset,
-      }),
-      prismadb.product.count({ where }),
-    ])
+    // Fetch products matching filters with limit
+    const products = await prismadb.product.findMany({
+      where,
+      include: {
+        images: true,
+        category: true,
+        size: true,
+        color: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      take: limit,
+    })
 
     return NextResponse.json({
-      data: products,
-      pagination: {
-        total: totalCount,
-        limit,
-        offset,
-        hasMore: offset + limit < totalCount,
-      },
+      products,
     })
   } catch (error: unknown) {
     console.error('[PRODUCTS_GET] Error:', error)
