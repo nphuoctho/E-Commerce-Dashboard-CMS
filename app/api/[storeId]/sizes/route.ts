@@ -55,6 +55,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ sto
 export async function GET(req: NextRequest, { params }: { params: Promise<{ storeId: string }> }) {
   try {
     const { storeId } = await params
+    const { searchParams } = new URL(req.url)
+
+    const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '10', 10), 1), 50)
 
     if (!storeId) {
       return new NextResponse('Store id is required', { status: 400 })
@@ -64,6 +67,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ stor
       where: {
         storeId: storeId,
       },
+      take: limit,
     })
 
     return NextResponse.json(size)
