@@ -58,6 +58,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ stor
     const { searchParams } = new URL(req.url)
 
     const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '10', 10), 1), 50)
+    const categoryId = searchParams.get('categoryId')
 
     if (!storeId) {
       return new NextResponse('Store id is required', { status: 400 })
@@ -66,6 +67,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ stor
     const color = await prismadb.color.findMany({
       where: {
         storeId: storeId,
+        ...(categoryId && {
+          products: {
+            some: {
+              categoryId,
+            },
+          },
+        }),
       },
       take: limit,
     })
