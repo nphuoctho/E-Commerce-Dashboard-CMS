@@ -230,14 +230,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ stor
     const isArchivedParam = searchParams.get('isArchived')
     const searchQuery = searchParams.get('search')?.trim()
 
-    // Verify authentication and store access
-    const { userId } = getAuth(req)
-    if (!userId) {
-      return new NextResponse('Unauthenticated', { status: 401 })
-    }
-
     const store = await prismadb.store.findFirst({
-      where: { id: storeId, userId },
+      where: { id: storeId },
     })
 
     if (!store) {
