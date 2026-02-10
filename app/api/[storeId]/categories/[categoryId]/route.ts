@@ -18,7 +18,11 @@ export async function GET(
         id: categoryId,
       },
       include: {
-        billboard: true,
+        billboard: {
+          include: {
+            image: true,
+          },
+        },
       },
     })
 
