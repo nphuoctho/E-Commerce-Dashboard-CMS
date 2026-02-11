@@ -30,7 +30,7 @@ interface OverviewProps {
 const chartConfig = {
   total: {
     label: 'Revenue',
-    color: 'hsl(var(--chart-1))',
+    color: 'var(--primary)',
   },
 } satisfies ChartConfig
 
