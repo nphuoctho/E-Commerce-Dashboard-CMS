@@ -58,7 +58,7 @@ const Overview = ({ data }: OverviewProps) => {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig}>
+        <ChartContainer config={chartConfig} className='h-62.5 md:h-75 lg:h-87.5 w-full'>
           <BarChart
             accessibilityLayer
             data={data}
